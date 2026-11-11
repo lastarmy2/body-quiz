@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { QuizTopic } from '../types/quiz';
 import {
   Plus,
@@ -11,8 +11,10 @@ import {
   Check,
   X,
   Sparkles,
-  BookOpen,
-  ArrowRight
+  ArrowRight,
+  Search,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 interface TopicManagerProps {
@@ -38,12 +40,33 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
 }) => {
   const [editingTopic, setEditingTopic] = useState<QuizTopic | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
-  const [singleWordInput, setSingleWordInput] = useState('');
+  const [modalWordInput, setModalWordInput] = useState('');
   const [bulkWordsInput, setBulkWordsInput] = useState('');
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Quick Inline Add Word on Detail Panel
+  const [quickWordInput, setQuickWordInput] = useState('');
+
+  // In-App Toast & Confirmation Modals
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<QuizTopic | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const activeTopic = topics.find((t) => t.id === selectedTopicId) || topics[0];
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+  };
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   const handleStartCreate = () => {
     const newTopic: QuizTopic = {
@@ -57,19 +80,63 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
     };
     setEditingTopic(newTopic);
     setIsCreatingNew(true);
-    setSingleWordInput('');
+    setModalWordInput('');
+    setFormError(null);
   };
 
   const handleStartEdit = (topic: QuizTopic) => {
     setEditingTopic({ ...topic, words: [...topic.words] });
     setIsCreatingNew(false);
-    setSingleWordInput('');
+    setModalWordInput('');
+    setFormError(null);
   };
 
-  const handleAddSingleWord = (e?: React.FormEvent) => {
+  // Quick Add Word directly from the Active Topic Detail view
+  const handleQuickAddWord = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTopic) return;
+    const trimmed = quickWordInput.trim();
+    if (!trimmed) return;
+
+    if (activeTopic.words.includes(trimmed)) {
+      showToast(`⚠️ '${trimmed}'은(는) 이미 등록되어 있는 단어입니다.`);
+      return;
+    }
+
+    const updatedWords = [...activeTopic.words, trimmed];
+    const updatedTopic: QuizTopic = {
+      ...activeTopic,
+      words: updatedWords,
+    };
+
+    onSaveTopic(updatedTopic);
+    setQuickWordInput('');
+    showToast(`✅ '${trimmed}' 단어가 추가되었습니다! (클라우드 및 퀴즈 화면에 즉시 반영)`);
+  };
+
+  // Quick Delete Word directly from word chip
+  const handleQuickDeleteWord = (wordToDelete: string) => {
+    if (!activeTopic) return;
+    if (activeTopic.words.length <= 1) {
+      showToast('⚠️ 주제에 최소 1개 이상의 문제가 있어야 합니다.');
+      return;
+    }
+
+    const updatedWords = activeTopic.words.filter((w) => w !== wordToDelete);
+    const updatedTopic: QuizTopic = {
+      ...activeTopic,
+      words: updatedWords,
+    };
+
+    onSaveTopic(updatedTopic);
+    showToast(`🗑️ '${wordToDelete}' 단어가 삭제되었습니다.`);
+  };
+
+  // Inside Modal: Add single word
+  const handleAddModalWord = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!editingTopic) return;
-    const trimmed = singleWordInput.trim();
+    const trimmed = modalWordInput.trim();
     if (!trimmed) return;
 
     if (!editingTopic.words.includes(trimmed)) {
@@ -78,10 +145,11 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
         words: [...editingTopic.words, trimmed],
       });
     }
-    setSingleWordInput('');
+    setModalWordInput('');
   };
 
-  const handleRemoveWord = (wordToRemove: string) => {
+  // Inside Modal: Remove word
+  const handleRemoveModalWord = (wordToRemove: string) => {
     if (!editingTopic) return;
     setEditingTopic({
       ...editingTopic,
@@ -89,9 +157,9 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
     });
   };
 
+  // Bulk Words Apply
   const handleApplyBulkWords = () => {
     if (!editingTopic) return;
-    // Split by newlines, commas, or slashes
     const rawWords = bulkWordsInput
       .split(/[\n,;/]+/)
       .map((w) => w.trim())
@@ -113,17 +181,19 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
     });
     setBulkWordsInput('');
     setShowBulkModal(false);
+    showToast(`📝 ${rawWords.length}개의 단어가 대량 추가되었습니다.`);
   };
 
+  // Save Modal Form
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTopic) return;
     if (!editingTopic.title.trim()) {
-      alert('주제명을 입력해 주세요.');
+      setFormError('주제명을 입력해 주세요.');
       return;
     }
     if (editingTopic.words.length === 0) {
-      alert('최소 1개 이상의 문제를 입력해 주세요.');
+      setFormError('최소 1개 이상의 문제를 입력해 주세요.');
       return;
     }
 
@@ -131,8 +201,11 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
     onSelectTopic(editingTopic.id);
     setEditingTopic(null);
     setIsCreatingNew(false);
+    setFormError(null);
+    showToast(`🎉 '${editingTopic.title}' 문제 세트가 저장되고 모든 화면에 동기화되었습니다!`);
   };
 
+  // Export to JSON file
   const handleExportJSON = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(topics, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -143,6 +216,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
     downloadAnchor.remove();
   };
 
+  // Import from JSON file
   const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -153,12 +227,12 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].words) {
           parsed.forEach((item: QuizTopic) => onSaveTopic(item));
-          alert(`${parsed.length}개의 주제를 성공적으로 불러왔습니다!`);
+          showToast(`📁 ${parsed.length}개의 주제를 성공적으로 불러왔습니다!`);
         } else {
-          alert('올바른 문제 세트 JSON 형식이 아닙니다.');
+          showToast('⚠️ 올바른 문제 세트 JSON 형식이 아닙니다.');
         }
       } catch {
-        alert('파일을 읽는 도중 오류가 발생했습니다.');
+        showToast('⚠️ 파일을 읽는 도중 오류가 발생했습니다.');
       }
     };
     reader.readAsText(file);
@@ -171,6 +245,20 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="text-sm font-medium">{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Banner / Actions Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
         <div>
@@ -178,14 +266,14 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
             <span>📝</span> 주제 & 제시어 문제 관리
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            행사 성격에 맞게 새로운 주제를 추가하거나 기존 문제를 마음껏 편집하세요.
+            문제를 추가하거나 수정하면 배포된 앱 및 모든 화면에 실시간으로 자동 동기화됩니다.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleStartCreate}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors whitespace-nowrap cursor-pointer"
           >
             <Plus className="w-4 h-4" /> 새 주제 만들기
           </button>
@@ -199,19 +287,15 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
           <button
             onClick={handleExportJSON}
             title="현재 문제 세트를 파일로 저장"
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-medium transition-colors whitespace-nowrap cursor-pointer"
           >
             <Download className="w-4 h-4" /> 내보내기
           </button>
 
           <button
-            onClick={() => {
-              if (confirm('기본 추천 문제 세트로 초기화하시겠습니까? (직접 만든 주제는 삭제됩니다)')) {
-                onResetToDefaults();
-              }
-            }}
+            onClick={() => setShowResetConfirm(true)}
             title="초기 프리셋으로 되돌리기"
-            className="flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+            className="flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-sm font-medium transition-colors whitespace-nowrap cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" /> 초기화
           </button>
@@ -226,19 +310,19 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
               주제 목록 ({topics.length}개)
             </span>
-            <span className="text-xs text-slate-500">선택하여 미리보기</span>
+            <span className="text-xs text-slate-500">선택하여 바로 편집</span>
           </div>
 
           <div className="space-y-2.5 max-h-[640px] overflow-y-auto pr-1">
             {topics.map((t) => {
-              const isSelected = t.id === activeTopic.id;
+              const isSelected = t.id === activeTopic?.id;
               return (
                 <div
                   key={t.id}
                   onClick={() => onSelectTopic(t.id)}
                   className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${
                     isSelected
-                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 shadow-sm ring-1 ring-blue-500'
+                      ? 'border-blue-500 bg-blue-50/80 dark:bg-blue-950/40 shadow-sm ring-2 ring-blue-500'
                       : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
@@ -274,7 +358,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Selected Topic Details & Words (7 cols) */}
+        {/* Right Column: Selected Topic Details & Live Editor (7 cols) */}
         <div className="lg:col-span-7">
           {activeTopic && (
             <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
@@ -304,19 +388,15 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleStartEdit(activeTopic)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                   >
-                    <Edit2 className="w-4 h-4" /> 문제 수정
+                    <Edit2 className="w-4 h-4" /> 전체 수정
                   </button>
 
                   {activeTopic.isCustom && (
                     <button
-                      onClick={() => {
-                        if (confirm(`'${activeTopic.title}' 주제를 삭제하시겠습니까?`)) {
-                          onDeleteTopic(activeTopic.id);
-                        }
-                      }}
-                      className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
+                      onClick={() => setTopicToDelete(activeTopic)}
+                      className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
                       title="주제 삭제"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -325,7 +405,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
 
                   <button
                     onClick={() => onStartQuizWithTopic(activeTopic.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-500/20 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
                   >
                     <span>이 주제로 퀴즈 시작</span>
                     <ArrowRight className="w-4 h-4" />
@@ -333,39 +413,70 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                 </div>
               </div>
 
+              {/* Quick Add Word Bar */}
+              <form onSubmit={handleQuickAddWord} className="flex gap-2">
+                <input
+                  type="text"
+                  value={quickWordInput}
+                  onChange={(e) => setQuickWordInput(e.target.value)}
+                  placeholder={`'${activeTopic.title}'에 새 문제 추가 (예: 우주비행사, 솜사탕 등)...`}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-xs shrink-0 cursor-pointer"
+                >
+                  단어 추가
+                </button>
+              </form>
+
               {/* Words Header & Search */}
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-800 dark:text-slate-200 text-base">
                     출제 문제 목록
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-bold">
                     총 {activeTopic.words.length}개
+                  </span>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    (단어 우측 x를 누르면 즉시 삭제됩니다)
                   </span>
                 </div>
 
-                <input
-                  type="text"
-                  placeholder="단어 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="단어 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                  />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                </div>
               </div>
 
-              {/* Word Chips Display */}
+              {/* Word Chips Display with Direct Delete Support */}
               <div className="min-h-[280px] max-h-[420px] overflow-y-auto p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800 flex flex-wrap gap-2.5 content-start">
                 {filteredWords.length > 0 ? (
                   filteredWords.map((word, idx) => (
                     <div
                       key={idx}
-                      className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm font-semibold shadow-xs flex items-center gap-2 group"
+                      className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-sm font-semibold shadow-xs flex items-center gap-2 group hover:border-slate-300"
                     >
                       <span className="text-slate-400 text-xs font-mono">{idx + 1}</span>
                       <span>{word}</span>
                       <span className="text-[11px] text-slate-400 font-normal">
                         ({word.replace(/\s+/g, '').length}자)
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickDeleteWord(word)}
+                        title={`'${word}' 단어 삭제`}
+                        className="text-slate-300 hover:text-rose-600 transition-colors p-0.5 rounded cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -386,15 +497,23 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white font-dohyeon">
-                {isCreatingNew ? '✨ 새로운 퀴즈 주제 만들기' : '✏️ 퀴즈 주제 및 문제 수정'}
+                {isCreatingNew ? '✨ 새로운 퀴즈 주제 만들기' : '✏️ 퀴즈 주제 및 문제 전체 수정'}
               </h3>
               <button
                 onClick={() => setEditingTopic(null)}
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Form Error Banner */}
+            {formError && (
+              <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
 
             {/* Modal Body */}
             <form onSubmit={handleSaveForm} className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -468,7 +587,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowBulkModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900 text-amber-800 dark:text-amber-300 transition-colors cursor-pointer"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     <span>한 번에 대량 입력</span>
@@ -479,21 +598,21 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    value={singleWordInput}
-                    onChange={(e) => setSingleWordInput(e.target.value)}
+                    value={modalWordInput}
+                    onChange={(e) => setModalWordInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleAddSingleWord();
+                        handleAddModalWord();
                       }
                     }}
-                    placeholder="제시어 단어 입력 (예: 코끼리, 양치질하기) 후 엔터"
+                    placeholder="제시어 단어 입력 후 엔터"
                     className="flex-1 px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                   <button
                     type="button"
-                    onClick={() => handleAddSingleWord()}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold"
+                    onClick={() => handleAddModalWord()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold cursor-pointer"
                   >
                     추가
                   </button>
@@ -510,8 +629,8 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                         <span>{word}</span>
                         <button
                           type="button"
-                          onClick={() => handleRemoveWord(word)}
-                          className="text-slate-400 hover:text-rose-600 ml-1"
+                          onClick={() => handleRemoveModalWord(word)}
+                          className="text-slate-400 hover:text-rose-600 ml-1 cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -530,13 +649,13 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => setEditingTopic(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all flex items-center gap-1.5"
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>저장 완료</span>
@@ -558,7 +677,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
               </h4>
               <button
                 onClick={() => setShowBulkModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -595,18 +714,97 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowBulkModal(false)}
-                  className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg"
+                  className="px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   닫기
                 </button>
                 <button
                   type="button"
                   onClick={handleApplyBulkWords}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
                 >
                   단어 일괄 추가하기
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Confirmation Modal: Reset to Defaults */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center mx-auto text-amber-600">
+              <RotateCcw className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                초기 문제로 되돌리기
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                기본 추천 문제 세트로 복원하시겠습니까? 직접 추가한 커스텀 주제는 초기화됩니다.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  onResetToDefaults();
+                  showToast('🔄 기본 문제 세트로 초기화되었습니다.');
+                }}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer"
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Confirmation Modal: Delete Custom Topic */}
+      {topicToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center mx-auto text-rose-600">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                주제 삭제
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <strong>'{topicToDelete.title}'</strong> 주제를 정말로 삭제하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setTopicToDelete(null)}
+                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const title = topicToDelete.title;
+                  onDeleteTopic(topicToDelete.id);
+                  setTopicToDelete(null);
+                  showToast(`🗑️ '${title}' 주제가 삭제되었습니다.`);
+                }}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer"
+              >
+                삭제하기
+              </button>
             </div>
           </div>
         </div>

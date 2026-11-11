@@ -80,6 +80,8 @@ export const TeamScoreboard: React.FC<TeamScoreboardProps> = ({
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamColor, setNewTeamColor] = useState<Team['color']>('green');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
 
   const sortedTeams = [...teams].sort((a, b) => b.score - a.score);
   const highestScore = Math.max(...teams.map((t) => t.score), 0);
@@ -119,12 +121,8 @@ export const TeamScoreboard: React.FC<TeamScoreboardProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              if (confirm('모든 팀의 점수를 0점으로 리셋하시겠습니까?')) {
-                onResetScores();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-sm font-medium transition-colors whitespace-nowrap"
+            onClick={() => setShowResetConfirm(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-sm font-medium transition-colors whitespace-nowrap cursor-pointer"
           >
             <RotateCcw className="w-4 h-4" /> 점수 초기화
           </button>
@@ -257,11 +255,9 @@ export const TeamScoreboard: React.FC<TeamScoreboardProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`'${team.name}'을(를) 삭제하시겠습니까?`)) {
-                          onDeleteTeam(team.id);
-                        }
+                        setTeamToDelete(team);
                       }}
-                      className="p-1 hover:bg-white/20 rounded-md transition-colors"
+                      className="p-1 hover:bg-white/20 rounded-md transition-colors cursor-pointer"
                       title="팀 삭제"
                     >
                       <Trash2 className="w-3.5 h-3.5 text-white/80" />
@@ -320,6 +316,82 @@ export const TeamScoreboard: React.FC<TeamScoreboardProps> = ({
           );
         })}
       </div>
+
+      {/* In-App Confirmation Modal: Reset Scores */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center mx-auto text-amber-600">
+              <RotateCcw className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                점수 초기화
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                모든 팀의 점수를 <strong>0점</strong>으로 리셋하시겠습니까? (팀 정보는 유지됩니다)
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  onResetScores();
+                }}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer"
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Confirmation Modal: Delete Team */}
+      {teamToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center mx-auto text-rose-600">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <div>
+              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                팀 삭제
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <strong>'{teamToDelete.name}'</strong>을(를) 삭제하시겠습니까?
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setTeamToDelete(null)}
+                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteTeam(teamToDelete.id);
+                  setTeamToDelete(null);
+                }}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer"
+              >
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

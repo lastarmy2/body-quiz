@@ -62,6 +62,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [history, setHistory] = useState<GameWordResult[]>([]);
   const [flashType, setFlashType] = useState<'correct' | 'passed' | null>(null);
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
 
   const activeTopic = topics.find((t) => t.id === selectedTopicId) || topics[0];
   const activeTeam = teams.find((t) => t.id === selectedTeamId) || teams[0];
@@ -101,9 +103,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const handleStartGame = () => {
     const words = prepareGameWords();
     if (words.length === 0) {
-      alert('출제할 문제가 없습니다. 주제 관리에서 문제를 먼저 등록해 주세요.');
+      setLobbyError('출제할 문제가 없습니다. 주제 관리에서 문제를 먼저 등록해 주세요.');
       return;
     }
+    setLobbyError(null);
 
     setActiveWords(words);
     setCurrentIndex(0);
@@ -301,16 +304,28 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   const passCount = history.filter((h) => h.status === 'passed').length;
   const currentWord = activeWords[currentIndex] || '';
 
-  // Font size styling
-  const getWordFontSizeClass = (size: FontSizeOption) => {
-    switch (size) {
-      case 'huge':
-        return 'text-6xl sm:text-7xl md:text-8xl lg:text-9xl';
-      case 'large':
-        return 'text-5xl sm:text-6xl md:text-7xl lg:text-8xl';
-      case 'normal':
-      default:
-        return 'text-4xl sm:text-5xl md:text-6xl lg:text-7xl';
+  // Dynamic responsive font size scaling so ANY word fills the entire screen
+  const getDynamicWordClasses = (word: string, sizePref: FontSizeOption) => {
+    const len = word.replace(/\s+/g, '').length || 1;
+
+    if (sizePref === 'huge') {
+      if (len <= 2) return 'text-[clamp(6rem,22vw,22rem)]';
+      if (len <= 3) return 'text-[clamp(5rem,18vw,18rem)]';
+      if (len <= 4) return 'text-[clamp(4.2rem,14.5vw,14.5rem)]';
+      if (len <= 6) return 'text-[clamp(3.5rem,11vw,11rem)]';
+      return 'text-[clamp(2.5rem,8vw,8rem)]';
+    } else if (sizePref === 'large') {
+      if (len <= 2) return 'text-[clamp(5rem,19vw,19rem)]';
+      if (len <= 3) return 'text-[clamp(4.2rem,15.5vw,15.5rem)]';
+      if (len <= 4) return 'text-[clamp(3.5rem,12.5vw,12.5rem)]';
+      if (len <= 6) return 'text-[clamp(3rem,9.5vw,9.5rem)]';
+      return 'text-[clamp(2.2rem,7vw,7rem)]';
+    } else {
+      if (len <= 2) return 'text-[clamp(4rem,15vw,15rem)]';
+      if (len <= 3) return 'text-[clamp(3.5rem,12vw,12rem)]';
+      if (len <= 4) return 'text-[clamp(3rem,10vw,10rem)]';
+      if (len <= 6) return 'text-[clamp(2.5rem,7.5vw,7.5rem)]';
+      return 'text-[clamp(2rem,5.5vw,5.5rem)]';
     }
   };
 
@@ -585,8 +600,8 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
   return (
     <div
-      className={`relative min-h-[78vh] flex flex-col justify-between rounded-3xl p-4 sm:p-8 transition-colors select-none ${
-        isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900 border border-slate-200'
+      className={`relative flex-1 w-full min-h-[calc(100vh-6.5rem)] flex flex-col justify-between rounded-3xl p-3 sm:p-5 transition-colors select-none ${
+        isDark ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900 border border-slate-200 shadow-sm'
       } ${
         flashType === 'correct'
           ? 'ring-8 ring-emerald-500/80 bg-emerald-950/20'
@@ -597,64 +612,64 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     >
       {/* Visual Flash Banner overlay */}
       {flashType === 'correct' && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-          <div className="px-8 py-3 rounded-2xl bg-emerald-600 text-white font-dohyeon text-4xl shadow-2xl animate-in zoom-in-90 fade-out duration-300">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-30">
+          <div className="px-8 py-4 rounded-3xl bg-emerald-600 text-white font-dohyeon text-4xl sm:text-5xl shadow-2xl animate-in zoom-in-90 fade-out duration-300">
             딩동댕! 정답! +1점 👏
           </div>
         </div>
       )}
       {flashType === 'passed' && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-          <div className="px-8 py-3 rounded-2xl bg-amber-600 text-white font-dohyeon text-4xl shadow-2xl animate-in zoom-in-90 fade-out duration-300">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-30">
+          <div className="px-8 py-4 rounded-3xl bg-amber-600 text-white font-dohyeon text-4xl sm:text-5xl shadow-2xl animate-in zoom-in-90 fade-out duration-300">
             패스! 다음 문제 ⏩
           </div>
         </div>
       )}
 
-      {/* Top HUD Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200/50 dark:border-slate-800">
-        {/* Left: Active Team & Subject */}
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm sm:text-base flex items-center gap-2 shadow-sm">
+      {/* Top HUD Strip: Compact, High-contrast */}
+      <div className="flex items-center justify-between gap-3 px-2 pb-3 border-b border-slate-200/60 dark:border-slate-800/80 shrink-0">
+        {/* Left: Active Team & Topic */}
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-sm">
             <span>🎯</span>
-            <span>{activeTeam?.name}</span>
+            <span className="font-dohyeon text-sm sm:text-base tracking-wide">{activeTeam?.name}</span>
           </div>
-
           {settings.showCategory && (
-            <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 hidden sm:block">
-              {activeTopic.emoji} {activeTopic.title}
+            <div className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <span>{activeTopic.emoji}</span>
+              <span>{activeTopic.title}</span>
             </div>
           )}
         </div>
 
-        {/* Center: Timer Meter */}
-        <div className="flex items-center gap-4">
+        {/* Center: Timer Clock */}
+        <div className="flex items-center justify-center">
           {settings.timeLimit > 0 ? (
             <div
-              className={`flex items-center gap-2 px-5 py-2 rounded-2xl border font-dohyeon text-3xl sm:text-4xl tabular-nums shadow-sm transition-all ${
+              className={`flex items-center gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-2xl border font-dohyeon text-2xl sm:text-3xl tabular-nums shadow-sm transition-all ${
                 isTimeUrgent
                   ? 'border-rose-500 bg-rose-500 text-white animate-pulse shadow-rose-500/50'
                   : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
               }`}
             >
-              <Clock className={`w-6 h-6 ${isTimeUrgent ? 'animate-spin' : 'text-blue-500'}`} />
+              <Clock className={`w-5 h-5 ${isTimeUrgent ? 'animate-spin' : 'text-blue-500'}`} />
               <span>{formatTimerDisplay(timeLeft)}</span>
             </div>
           ) : (
-            <div className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-bold flex items-center gap-2">
+            <div className="px-3.5 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-bold flex items-center gap-1.5">
               <Clock className="w-4 h-4" />
-              <span>무제한 모드</span>
+              <span>무제한</span>
             </div>
           )}
         </div>
 
         {/* Right: Score Counter & Pause */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm font-bold">
-            <span className="px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold">
+            <span className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300">
               정답 {correctCount}
             </span>
-            <span className="px-3 py-1.5 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300">
+            <span className="px-2.5 py-1 rounded-xl bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300">
               패스 {passCount}
               {settings.passLimit > 0 && `/${settings.passLimit}`}
             </span>
@@ -662,38 +677,47 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
 
           <button
             onClick={handleTogglePause}
-            className="p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="일시정지 (Esc)"
           >
-            <Pause className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            <Pause className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-300" />
           </button>
         </div>
       </div>
 
-      {/* Main Presentation Stage: Giant Word Card */}
-      <div className="my-auto py-10 text-center flex flex-col items-center justify-center space-y-4">
-        {/* Word Context Tag */}
-        <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-slate-500 dark:text-slate-400">
-          <span>문제 {currentIndex + 1} / {activeWords.length}</span>
+      {/* Main Presentation Stage: Giant Screen-Filling Word Arena */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full my-auto px-2 sm:px-6 relative overflow-hidden py-4">
+        {/* Ambient Stage Glow */}
+        <div
+          className={`absolute inset-0 pointer-events-none rounded-3xl transition-opacity duration-300 ${
+            isDark
+              ? 'bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.18),transparent_70%)]'
+              : 'bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.15),transparent_70%)]'
+          }`}
+        />
+
+        {/* Context metadata pills */}
+        <div className="flex items-center gap-2 mb-2 z-10 text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+          <span className="px-3 py-1 rounded-full bg-slate-200/80 dark:bg-slate-800/80">
+            문제 {currentIndex + 1} / {activeWords.length}
+          </span>
           {settings.showWordLength && currentWord && (
-            <>
-              <span>·</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-bold">
-                [{currentWord.replace(/\s+/g, '').length}글자]
-              </span>
-            </>
+            <span className="px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-bold">
+              {currentWord.replace(/\s+/g, '').length}글자
+            </span>
           )}
         </div>
 
-        {/* The Word */}
-        <div className="px-4 py-8 w-full">
+        {/* Massive Screen-Filling Word */}
+        <div className="w-full flex-1 flex items-center justify-center text-center z-10 px-2 py-4 sm:py-8">
           <h2
-            className={`font-dohyeon font-bold tracking-wide transition-all leading-tight ${getWordFontSizeClass(
+            className={`font-dohyeon font-bold transition-all leading-none select-none tracking-tight break-keep text-balance ${getDynamicWordClasses(
+              currentWord,
               settings.fontSize
             )} ${
               isDark
-                ? 'text-white drop-shadow-[0_10px_20px_rgba(255,255,255,0.15)]'
-                : 'text-slate-900 drop-shadow-md'
+                ? 'text-white drop-shadow-[0_12px_45px_rgba(255,255,255,0.3)]'
+                : 'text-slate-900 drop-shadow-[0_6px_25px_rgba(0,0,0,0.16)]'
             }`}
           >
             {currentWord || '모든 문제 완료!'}
@@ -701,17 +725,16 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
         </div>
       </div>
 
-      {/* Bottom Stage Controls */}
-      <div className="space-y-3 pt-4 border-t border-slate-200/50 dark:border-slate-800">
-        {/* Primary Action Buttons */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Bottom Stage Controls: Compact Dock */}
+      <div className="space-y-2 pt-3 border-t border-slate-200/60 dark:border-slate-800/80 shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {/* 1. Correct Button */}
           <button
             onClick={handleCorrect}
             disabled={playStatus === 'PAUSED'}
-            className="sm:col-span-2 py-5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 active:scale-98 text-white font-dohyeon text-2xl sm:text-3xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-3 transition-all cursor-pointer"
+            className="sm:col-span-2 py-3.5 sm:py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 active:scale-98 text-white font-dohyeon text-xl sm:text-2xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
           >
-            <CheckCircle className="w-8 h-8 fill-current" />
+            <CheckCircle className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
             <span>정답! 맞힘 (Space)</span>
           </button>
 
@@ -722,9 +745,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               playStatus === 'PAUSED' ||
               (settings.passLimit > 0 && passCount >= settings.passLimit)
             }
-            className="py-5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-98 disabled:opacity-50 text-white font-dohyeon text-xl sm:text-2xl shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+            className="py-3.5 sm:py-4 px-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-98 disabled:opacity-50 text-white font-dohyeon text-lg sm:text-xl shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
-            <SkipForward className="w-6 h-6 fill-current" />
+            <SkipForward className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
             <span>패스 (P)</span>
           </button>
 
@@ -733,34 +756,30 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             <button
               onClick={handleUndo}
               disabled={history.length === 0}
-              className="flex-1 py-5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-700 dark:text-slate-200 font-bold text-sm flex flex-col items-center justify-center gap-1 transition-all"
+              className="flex-1 py-3 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 transition-all"
               title="이전 단어로 되돌리기 (Backspace)"
             >
-              <Undo2 className="w-5 h-5" />
+              <Undo2 className="w-4 h-4" />
               <span>되돌리기</span>
             </button>
 
             <button
-              onClick={() => {
-                if (confirm('현재 라운드를 종료하시겠습니까?')) {
-                  handleEndGame();
-                }
-              }}
-              className="py-5 px-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold text-xs flex flex-col items-center justify-center gap-1 transition-all"
-              title="라운드 강제 종료"
+              onClick={() => setShowExitModal(true)}
+              className="py-3 px-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 font-bold text-xs flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer"
+              title="라운드 종료"
             >
-              <Square className="w-5 h-5 fill-current" />
+              <Square className="w-4 h-4 fill-current" />
               <span>종료</span>
             </button>
           </div>
         </div>
 
         {/* MC Shortcut Helper Strip */}
-        <div className="text-center text-xs text-slate-400 dark:text-slate-500 hidden sm:block">
-          단축키 안내: <strong className="text-slate-600 dark:text-slate-300">Space / Enter</strong> = 정답 |{' '}
-          <strong className="text-slate-600 dark:text-slate-300">P</strong> = 패스 |{' '}
-          <strong className="text-slate-600 dark:text-slate-300">Backspace</strong> = 되돌리기 |{' '}
-          <strong className="text-slate-600 dark:text-slate-300">Esc</strong> = 일시정지
+        <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 hidden sm:block">
+          단축키: <strong className="text-slate-600 dark:text-slate-300">Space/Enter</strong> 정답 |{' '}
+          <strong className="text-slate-600 dark:text-slate-300">P</strong> 패스 |{' '}
+          <strong className="text-slate-600 dark:text-slate-300">Backspace</strong> 되돌리기 |{' '}
+          <strong className="text-slate-600 dark:text-slate-300">Esc</strong> 일시정지
         </div>
       </div>
 
@@ -777,11 +796,52 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               계속하기 (Esc)
             </button>
             <button
-              onClick={handleEndGame}
+              onClick={() => {
+                setPlayStatus('LOBBY');
+                handleEndGame();
+              }}
               className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-base shadow-lg"
             >
               라운드 종료하기
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Exit Confirmation Modal (Replaces blocked window.confirm) */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center mx-auto text-rose-600">
+              <Square className="w-7 h-7 fill-current" />
+            </div>
+            <div>
+              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                퀴즈를 종료하시겠습니까?
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                현재까지 맞힌 <strong className="text-emerald-600">{correctCount}문제</strong>의 점수가 기록되고 라운드가 마무리됩니다.
+              </p>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowExitModal(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                계속 풀기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExitModal(false);
+                  handleEndGame();
+                }}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md transition-colors"
+              >
+                지금 종료
+              </button>
+            </div>
           </div>
         </div>
       )}

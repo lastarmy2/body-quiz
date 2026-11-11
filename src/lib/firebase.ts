@@ -88,6 +88,29 @@ const TOPICS_COLLECTION = 'topics';
 const TEAMS_COLLECTION = 'teams';
 const RESULTS_COLLECTION = 'game_results';
 
+const PRESET_ORDER = [
+  'preset-animals',
+  'preset-sports',
+  'preset-jobs',
+  'preset-actions',
+  'preset-school',
+  'preset-characters',
+  'preset-foods',
+];
+
+export function sortTopicsCanonically(list: QuizTopic[]): QuizTopic[] {
+  return [...list].sort((a, b) => {
+    const aIndex = PRESET_ORDER.indexOf(a.id);
+    const bIndex = PRESET_ORDER.indexOf(b.id);
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+    if (aIndex !== -1) return -1;
+    if (bIndex !== -1) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+}
+
 // Real-time Topics Subscription
 export function subscribeToTopics(
   onData: (topics: QuizTopic[]) => void,
@@ -101,7 +124,7 @@ export function subscribeToTopics(
       snapshot.forEach((d) => {
         items.push(d.data() as QuizTopic);
       });
-      onData(items);
+      onData(sortTopicsCanonically(items));
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, TOPICS_COLLECTION);
