@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+.font-dohyeon {
+  font-family: 'Do Hyeon', 'Noto Sans KR', sans-serif;
+}

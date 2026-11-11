@@ -1,0 +1,6 @@
+{
+  "name": "몸으로 말해요 - 초등학교 행사 퀴즈 맞히기",
+  "description": "초등학교 행사 및 수업용 몸으로 말해요(스피드 퀴즈) 프로그램. 주제별 단어 관리, 대형 화면 맞춤 제시어 표시, 타이머, 팀 대결 점수판을 지원합니다.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
