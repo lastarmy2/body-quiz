@@ -81,8 +81,23 @@ export const RoundResult: React.FC<RoundResultProps> = ({
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
               <div className="text-xs font-bold text-slate-600 dark:text-slate-400">도전 시간</div>
               <div className="text-3xl font-bold font-dohyeon text-slate-700 dark:text-slate-200 mt-0.5">
-                {summary.timeSpent}
-                <span className="text-sm font-sans font-normal ml-0.5">초</span>
+                {Math.floor(summary.timeSpent / 60) > 0 ? (
+                  <>
+                    <span>{Math.floor(summary.timeSpent / 60)}</span>
+                    <span className="text-base font-sans font-normal ml-0.5 mr-1.5">분</span>
+                    {summary.timeSpent % 60 > 0 && (
+                      <>
+                        <span>{summary.timeSpent % 60}</span>
+                        <span className="text-base font-sans font-normal ml-0.5">초</span>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span>{summary.timeSpent}</span>
+                    <span className="text-base font-sans font-normal ml-0.5">초</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

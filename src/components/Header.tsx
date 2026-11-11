@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Maximize2, Minimize2, HelpCircle, Moon, Sun, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, Maximize2, Minimize2, HelpCircle, Moon, Sun, Cloud, CloudOff } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: 'play' | 'topics' | 'teams';
@@ -12,6 +12,7 @@ interface HeaderProps {
   stageMode: 'light' | 'stageDark';
   onToggleStageMode: () => void;
   onOpenHelp: () => void;
+  cloudStatus: 'connected' | 'syncing' | 'offline';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   stageMode,
   onToggleStageMode,
   onOpenHelp,
+  cloudStatus,
 }) => {
   const isDark = stageMode === 'stageDark';
 
@@ -95,6 +97,30 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Functional Utilities */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Cloud DB Connection Status */}
+          {cloudStatus === 'connected' ? (
+            <span
+              title="클라우드 데이터베이스(Firebase)에 실시간 자동 저장됩니다."
+              className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-lg"
+            >
+              <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+              <span>DB 동기화 중</span>
+            </span>
+          ) : cloudStatus === 'syncing' ? (
+            <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-lg animate-pulse">
+              <Cloud className="w-3.5 h-3.5 text-blue-500" />
+              <span>동기화 연결 중</span>
+            </span>
+          ) : (
+            <span
+              title="오프라인 로컬 저장 모드로 동작 중입니다."
+              className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg"
+            >
+              <CloudOff className="w-3 h-3 text-slate-400" />
+              <span>로컬 모드</span>
+            </span>
+          )}
+
           {/* Sound Toggle */}
           <button
             onClick={onToggleSound}

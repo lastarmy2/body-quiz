@@ -13,6 +13,18 @@ import { TeamScoreboard } from './components/TeamScoreboard';
 import { RoundResult } from './components/RoundResult';
 import { InstructionsModal } from './components/InstructionsModal';
 import { sound } from './utils/audio';
+import {
+  subscribeToTopics,
+  saveTopicFirestore,
+  deleteTopicFirestore,
+  seedTopicsIfEmpty,
+  subscribeToTeams,
+  saveTeamFirestore,
+  deleteTeamFirestore,
+  resetTeamsScoresFirestore,
+  seedTeamsIfEmpty,
+  saveGameResultFirestore,
+} from './lib/firebase';
 
 const STORAGE_KEYS = {
   TOPICS: 'charades_quiz_topics_v1',
@@ -33,14 +45,12 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 export default function App() {
-  // 1. Persistent State Initialization
+  // 1. Initial State with Instant Cache
   const [topics, setTopics] = useState<QuizTopic[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TOPICS);
       if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
+    } catch {}
     return PRESET_TOPICS;
   });
 
@@ -48,9 +58,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TEAMS);
       if (saved) return JSON.parse(saved);
-    } catch {
-      // fallback
-    }
+    } catch {}
     return INITIAL_TEAMS;
   });
 
@@ -58,9 +66,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
       if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
-    } catch {
-      // fallback
-    }
+    } catch {}
     return DEFAULT_SETTINGS;
   });
 
@@ -68,9 +74,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.STAGE_MODE);
       if (saved === 'stageDark' || saved === 'light') return saved;
-    } catch {
-      // fallback
-    }
+    } catch {}
     return 'light';
   });
 
@@ -79,13 +83,63 @@ export default function App() {
   const [selectedTopicId, setSelectedTopicId] = useState<string>(() => topics[0]?.id || 'preset-animals');
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => teams[0]?.id || 'team-blue');
 
-  // 3. Runtime States
+  // 3. Cloud Database Connection Status
+  const [cloudStatus, setCloudStatus] = useState<'connected' | 'syncing' | 'offline'>('syncing');
+
+  // 4. Runtime UI States
   const [isGameRunning, setIsGameRunning] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showHelp, setShowHelp] = useState<boolean>(false);
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
 
-  // Sync state to localStorage
+  // Firestore Database Real-time Synchronization
+  useEffect(() => {
+    // 1. Seed initial data to cloud if collection is new
+    seedTopicsIfEmpty(PRESET_TOPICS);
+    seedTeamsIfEmpty(INITIAL_TEAMS);
+
+    // 2. Listen to real-time Topics
+    const unsubscribeTopics = subscribeToTopics(
+      (firestoreTopics) => {
+        if (firestoreTopics && firestoreTopics.length > 0) {
+          setTopics(firestoreTopics);
+          setCloudStatus('connected');
+          // If active topic was removed, fallback
+          setSelectedTopicId((prevId) => {
+            const exists = firestoreTopics.some((t) => t.id === prevId);
+            return exists ? prevId : firestoreTopics[0].id;
+          });
+        }
+      },
+      () => {
+        setCloudStatus('offline');
+      }
+    );
+
+    // 3. Listen to real-time Teams
+    const unsubscribeTeams = subscribeToTeams(
+      (firestoreTeams) => {
+        if (firestoreTeams && firestoreTeams.length > 0) {
+          setTeams(firestoreTeams);
+          setCloudStatus('connected');
+          setSelectedTeamId((prevId) => {
+            const exists = firestoreTeams.some((t) => t.id === prevId);
+            return exists ? prevId : firestoreTeams[0].id;
+          });
+        }
+      },
+      () => {
+        setCloudStatus('offline');
+      }
+    );
+
+    return () => {
+      unsubscribeTopics();
+      unsubscribeTeams();
+    };
+  }, []);
+
+  // Sync state to local storage cache for instant offline responsiveness
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEYS.TOPICS, JSON.stringify(topics));
@@ -154,8 +208,9 @@ export default function App() {
     setSettings((prev) => ({ ...prev, ...partial }));
   };
 
-  // Topic Handlers
-  const handleSaveTopic = (topic: QuizTopic) => {
+  // Topic Handlers (Optimistic update + Firestore sync)
+  const handleSaveTopic = async (topic: QuizTopic) => {
+    // 1. Optimistic UI update
     setTopics((prev) => {
       const idx = prev.findIndex((t) => t.id === topic.id);
       if (idx >= 0) {
@@ -165,9 +220,16 @@ export default function App() {
       }
       return [topic, ...prev];
     });
+
+    // 2. Cloud Firestore persist
+    try {
+      await saveTopicFirestore(topic);
+    } catch (err) {
+      console.warn('Firestore topic save fallback to local:', err);
+    }
   };
 
-  const handleDeleteTopic = (id: string) => {
+  const handleDeleteTopic = async (id: string) => {
     setTopics((prev) => {
       const filtered = prev.filter((t) => t.id !== id);
       if (selectedTopicId === id && filtered.length > 0) {
@@ -175,19 +237,39 @@ export default function App() {
       }
       return filtered;
     });
+
+    try {
+      await deleteTopicFirestore(id);
+    } catch (err) {
+      console.warn('Firestore topic delete error:', err);
+    }
   };
 
-  const handleResetToDefaults = () => {
+  const handleResetToDefaults = async () => {
     setTopics(PRESET_TOPICS);
     setSelectedTopicId(PRESET_TOPICS[0].id);
+
+    try {
+      for (const t of PRESET_TOPICS) {
+        await saveTopicFirestore(t);
+      }
+    } catch (err) {
+      console.warn('Firestore reset defaults error:', err);
+    }
   };
 
-  // Team Handlers
-  const handleUpdateTeam = (updated: Team) => {
+  // Team Handlers (Optimistic update + Firestore sync)
+  const handleUpdateTeam = async (updated: Team) => {
     setTeams((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+
+    try {
+      await saveTeamFirestore(updated);
+    } catch (err) {
+      console.warn('Firestore team update error:', err);
+    }
   };
 
-  const handleAddTeam = (name: string, color: Team['color']) => {
+  const handleAddTeam = async (name: string, color: Team['color']) => {
     const newTeam: Team = {
       id: 'team-' + Date.now(),
       name,
@@ -197,9 +279,15 @@ export default function App() {
     };
     setTeams((prev) => [...prev, newTeam]);
     setSelectedTeamId(newTeam.id);
+
+    try {
+      await saveTeamFirestore(newTeam);
+    } catch (err) {
+      console.warn('Firestore team add error:', err);
+    }
   };
 
-  const handleDeleteTeam = (id: string) => {
+  const handleDeleteTeam = async (id: string) => {
     setTeams((prev) => {
       const filtered = prev.filter((t) => t.id !== id);
       if (selectedTeamId === id && filtered.length > 0) {
@@ -207,29 +295,54 @@ export default function App() {
       }
       return filtered;
     });
-  };
 
-  const handleResetScores = () => {
-    setTeams((prev) => prev.map((t) => ({ ...t, score: 0, roundsPlayed: 0 })));
-  };
-
-  // Round Completion
-  const handleRoundComplete = (summary: RoundSummary) => {
-    // Automatically update team score and rounds played
-    if (summary.teamId) {
-      setTeams((prev) =>
-        prev.map((t) => {
-          if (t.id === summary.teamId) {
-            return {
-              ...t,
-              score: t.score + summary.correctWords.length,
-              roundsPlayed: t.roundsPlayed + 1,
-            };
-          }
-          return t;
-        })
-      );
+    try {
+      await deleteTeamFirestore(id);
+    } catch (err) {
+      console.warn('Firestore team delete error:', err);
     }
+  };
+
+  const handleResetScores = async () => {
+    const resetList = teams.map((t) => ({ ...t, score: 0, roundsPlayed: 0 }));
+    setTeams(resetList);
+
+    try {
+      await resetTeamsScoresFirestore(resetList);
+    } catch (err) {
+      console.warn('Firestore team scores reset error:', err);
+    }
+  };
+
+  // Round Completion: Persist round result to history and update team score in Firestore
+  const handleRoundComplete = async (summary: RoundSummary) => {
+    // 1. Update Team Score locally and in Firestore
+    if (summary.teamId) {
+      const targetTeam = teams.find((t) => t.id === summary.teamId);
+      if (targetTeam) {
+        const updatedTeam: Team = {
+          ...targetTeam,
+          score: targetTeam.score + summary.correctWords.length,
+          roundsPlayed: (targetTeam.roundsPlayed || 0) + 1,
+        };
+
+        setTeams((prev) => prev.map((t) => (t.id === updatedTeam.id ? updatedTeam : t)));
+
+        try {
+          await saveTeamFirestore(updatedTeam);
+        } catch (err) {
+          console.warn('Firestore round score save error:', err);
+        }
+      }
+    }
+
+    // 2. Save Round History to Firestore
+    try {
+      await saveGameResultFirestore(summary);
+    } catch (err) {
+      console.warn('Firestore game result save error:', err);
+    }
+
     setRoundSummary(summary);
   };
 
@@ -266,6 +379,7 @@ export default function App() {
         stageMode={stageMode}
         onToggleStageMode={handleToggleStageMode}
         onOpenHelp={() => setShowHelp(true)}
+        cloudStatus={cloudStatus}
       />
 
       {/* Main Content Viewport */}

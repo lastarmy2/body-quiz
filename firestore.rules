@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny fallback
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidTopic(data) {
+      return data.keys().hasAll(['id', 'title', 'emoji', 'words'])
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 100
+        && data.emoji is string && data.emoji.size() <= 10
+        && data.words is list && data.words.size() <= 200;
+    }
+
+    function isValidTeam(data) {
+      return data.keys().hasAll(['id', 'name', 'color', 'score', 'roundsPlayed'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 50
+        && data.color is string && data.color.size() <= 20
+        && data.score is number && data.score >= 0
+        && data.roundsPlayed is number && data.roundsPlayed >= 0;
+    }
+
+    function isValidGameResult(data) {
+      return data.keys().hasAll(['id', 'topicTitle', 'teamName', 'correctCount', 'passedCount', 'timeSpent', 'playedAt'])
+        && data.id is string && data.id.size() <= 128
+        && data.topicTitle is string && data.topicTitle.size() <= 100
+        && data.teamName is string && data.teamName.size() <= 50
+        && data.correctCount is number && data.correctCount >= 0
+        && data.passedCount is number && data.passedCount >= 0
+        && data.timeSpent is number && data.timeSpent >= 0
+        && data.playedAt is number;
+    }
+
+    match /topics/{topicId} {
+      allow read: if true;
+      allow create, update: if isValidId(topicId) && isValidTopic(incoming());
+      allow delete: if isValidId(topicId);
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create, update: if isValidId(teamId) && isValidTeam(incoming());
+      allow delete: if isValidId(teamId);
+    }
+
+    match /game_results/{resultId} {
+      allow read: if true;
+      allow create: if isValidId(resultId) && isValidGameResult(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

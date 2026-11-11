@@ -314,6 +314,15 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
     }
   };
 
+  const formatTimerDisplay = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins > 0) {
+      return `${mins}분 ${secs < 10 ? '0' : ''}${secs}초`;
+    }
+    return `${secs}초`;
+  };
+
   const isDark = stageMode === 'stageDark';
 
   // -------------------------------------------------------------
@@ -456,9 +465,10 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               >
                 <option value={30}>30초 (스피드 초단기전)</option>
                 <option value={45}>45초</option>
-                <option value={60}>60초 (표준 추천 ⭐️)</option>
-                <option value={90}>90초</option>
-                <option value={120}>120초 (여유로운 진행)</option>
+                <option value={60}>60초 (1분 · 표준 추천 ⭐️)</option>
+                <option value={90}>90초 (1분 30초)</option>
+                <option value={120}>120초 (2분)</option>
+                <option value={180}>180초 (3분 · 넉넉한 진행)</option>
                 <option value={0}>무제한 (시간 제한 없음)</option>
               </select>
             </div>
@@ -628,8 +638,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
               }`}
             >
               <Clock className={`w-6 h-6 ${isTimeUrgent ? 'animate-spin' : 'text-blue-500'}`} />
-              <span>{timeLeft}</span>
-              <span className="text-base font-sans font-normal ml-0.5">초</span>
+              <span>{formatTimerDisplay(timeLeft)}</span>
             </div>
           ) : (
             <div className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-bold flex items-center gap-2">

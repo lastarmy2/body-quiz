@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "Topic": {
+      "title": "Topic",
+      "description": "A quiz category containing charades words",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 300 },
+        "emoji": { "type": "string", "maxLength": 10 },
+        "words": { "type": "array", "description": "List of quiz words" },
+        "isCustom": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "emoji", "words"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "A participating competition team with scores",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 50 },
+        "color": { "type": "string", "maxLength": 20 },
+        "score": { "type": "number" },
+        "roundsPlayed": { "type": "number" }
+      },
+      "required": ["id", "name", "color", "score", "roundsPlayed"]
+    },
+    "GameResult": {
+      "title": "GameResult",
+      "description": "A record of a completed quiz round",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "topicTitle": { "type": "string", "maxLength": 100 },
+        "topicEmoji": { "type": "string", "maxLength": 10 },
+        "teamId": { "type": "string", "maxLength": 128 },
+        "teamName": { "type": "string", "maxLength": 50 },
+        "correctCount": { "type": "number" },
+        "passedCount": { "type": "number" },
+        "correctWords": { "type": "array" },
+        "passedWords": { "type": "array" },
+        "timeSpent": { "type": "number" },
+        "playedAt": { "type": "number" }
+      },
+      "required": ["id", "topicTitle", "teamName", "correctCount", "passedCount", "timeSpent", "playedAt"]
+    }
+  },
+  "firestore": {
+    "/topics/{topicId}": {
+      "schema": "Topic",
+      "description": "Collection of quiz topics and word decks"
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Collection of teams and cumulative scores"
+    },
+    "/game_results/{resultId}": {
+      "schema": "GameResult",
+      "description": "History of completed game rounds"
+    }
+  }
+}
