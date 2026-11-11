@@ -89,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               ) : (
                 <span
-                  title="비밀번호(0721)로 잠금됨"
+                  title="관리자 비밀번호로 잠금됨"
                   className="text-[11px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-mono font-bold"
                 >
                   🔒 잠김

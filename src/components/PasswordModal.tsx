@@ -87,6 +87,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
               ref={inputRef}
               type={showPassword ? 'text' : 'password'}
               maxLength={8}
+              inputMode="numeric"
               autoComplete="off"
               value={pin}
               onChange={(e) => {
@@ -103,33 +104,6 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
-          </div>
-
-          {/* Quick Keypad digits for convenience */}
-          <div className="grid grid-cols-5 gap-1.5 pt-1">
-            {['0', '7', '2', '1', 'C'].map((char) => (
-              <button
-                key={char}
-                type="button"
-                onClick={() => {
-                  if (char === 'C') {
-                    setPin('');
-                    setErrorMsg(null);
-                  } else {
-                    setPin((prev) => (prev.length < 8 ? prev + char : prev));
-                    if (errorMsg) setErrorMsg(null);
-                  }
-                  inputRef.current?.focus();
-                }}
-                className={`py-2 rounded-xl text-sm font-bold border transition-colors cursor-pointer ${
-                  char === 'C'
-                    ? 'border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-600'
-                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100'
-                }`}
-              >
-                {char}
-              </button>
-            ))}
           </div>
 
           {/* Error Message */}

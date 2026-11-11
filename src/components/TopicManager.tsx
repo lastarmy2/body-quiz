@@ -360,10 +360,21 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-right shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <span className="inline-block text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/80 px-2 py-0.5 rounded-full">
                         {t.words.length}문제
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTopicToDelete(t);
+                        }}
+                        title={`'${t.title}' 주제 삭제`}
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -399,7 +410,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => handleStartEdit(activeTopic)}
                     className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
@@ -407,15 +418,15 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
                     <Edit2 className="w-4 h-4" /> 전체 수정
                   </button>
 
-                  {activeTopic.isCustom && (
-                    <button
-                      onClick={() => setTopicToDelete(activeTopic)}
-                      className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
-                      title="주제 삭제"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTopicToDelete(activeTopic)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition-colors cursor-pointer"
+                    title={`'${activeTopic.title}' 주제 삭제`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>주제 삭제</span>
+                  </button>
 
                   <button
                     onClick={() => onStartQuizWithTopic(activeTopic.id)}
@@ -659,21 +670,37 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setEditingTopic(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>저장 완료</span>
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                {!isCreatingNew && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const toDel = editingTopic;
+                      setEditingTopic(null);
+                      setTopicToDelete(toDel);
+                    }}
+                    className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>이 주제 삭제</span>
+                  </button>
+                )}
+                <div className="flex items-center gap-3 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTopic(null)}
+                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>저장 완료</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -784,42 +811,77 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
         </div>
       )}
 
-      {/* In-App Confirmation Modal: Delete Custom Topic */}
+      {/* In-App Confirmation Modal: Delete Topic */}
       {topicToDelete && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl animate-in zoom-in-95">
             <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-rose-950 flex items-center justify-center mx-auto text-rose-600">
               <Trash2 className="w-7 h-7" />
             </div>
-            <div>
-              <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
-                주제 삭제
-              </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                <strong>'{topicToDelete.title}'</strong> 주제를 정말로 삭제하시겠습니까?
-              </p>
-            </div>
-            <div className="flex gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setTopicToDelete(null)}
-                className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const title = topicToDelete.title;
-                  onDeleteTopic(topicToDelete.id);
-                  setTopicToDelete(null);
-                  showToast(`🗑️ '${title}' 주제가 삭제되었습니다.`);
-                }}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer"
-              >
-                삭제하기
-              </button>
-            </div>
+
+            {topics.length <= 1 ? (
+              <>
+                <div>
+                  <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                    주제를 삭제할 수 없습니다
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    퀴즈 진행을 위해 <strong>최소 1개 이상의 주제</strong>가 유지되어야 합니다.
+                    새 주제를 먼저 추가한 뒤 삭제해 주세요.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopicToDelete(null)}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md cursor-pointer"
+                  >
+                    확인
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    <span>{topicToDelete.emoji || '📌'}</span>
+                    <span>{topicToDelete.title}</span>
+                  </div>
+                  <h4 className="text-xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                    주제를 삭제하시겠습니까?
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    주제에 포함된 <strong>{topicToDelete.words.length}개의 문제</strong>도 함께 삭제됩니다.
+                    <br />
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
+                      (기본 주제는 상단의 '초기화' 버튼으로 언제든 복원할 수 있습니다)
+                    </span>
+                  </p>
+                </div>
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopicToDelete(null)}
+                    className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 font-bold text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const title = topicToDelete.title;
+                      onDeleteTopic(topicToDelete.id);
+                      setTopicToDelete(null);
+                      showToast(`🗑️ '${title}' 주제가 삭제되었습니다.`);
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>삭제하기</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
