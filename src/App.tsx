@@ -12,6 +12,7 @@ import { TopicManager } from './components/TopicManager';
 import { TeamScoreboard } from './components/TeamScoreboard';
 import { RoundResult } from './components/RoundResult';
 import { InstructionsModal } from './components/InstructionsModal';
+import { PasswordModal } from './components/PasswordModal';
 import { sound } from './utils/audio';
 import {
   subscribeToTopics,
@@ -82,6 +83,16 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<'play' | 'topics' | 'teams'>('play');
   const [selectedTopicId, setSelectedTopicId] = useState<string>(() => topics[0]?.id || 'preset-animals');
   const [selectedTeamId, setSelectedTeamId] = useState<string>(() => teams[0]?.id || 'team-blue');
+
+  // Password Lock for Topic & Question Management (PIN: 0721)
+  const [isManagerUnlocked, setIsManagerUnlocked] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('charades_quiz_manager_unlocked') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
 
   // 3. Cloud Database Connection Status
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'syncing' | 'offline'>('syncing');
@@ -361,6 +372,34 @@ export default function App() {
     setCurrentTab('play');
   };
 
+  // Tab Selection with Password Protection for Topic & Question Management
+  const handleSelectTab = (tab: 'play' | 'topics' | 'teams') => {
+    if (tab === 'topics' && !isManagerUnlocked) {
+      setShowPasswordModal(true);
+      return;
+    }
+    setCurrentTab(tab);
+  };
+
+  const handlePasswordSuccess = () => {
+    setIsManagerUnlocked(true);
+    try {
+      sessionStorage.setItem('charades_quiz_manager_unlocked', 'true');
+    } catch {}
+    setShowPasswordModal(false);
+    setCurrentTab('topics');
+  };
+
+  const handleLockManager = () => {
+    setIsManagerUnlocked(false);
+    try {
+      sessionStorage.removeItem('charades_quiz_manager_unlocked');
+    } catch {}
+    if (currentTab === 'topics') {
+      setCurrentTab('play');
+    }
+  };
+
   return (
     <div
       className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
@@ -370,7 +409,7 @@ export default function App() {
       {/* Top Bar Header */}
       <Header
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={handleSelectTab}
         isGameRunning={isGameRunning}
         soundEnabled={settings.soundEnabled}
         onToggleSound={handleToggleSound}
@@ -380,6 +419,8 @@ export default function App() {
         onToggleStageMode={handleToggleStageMode}
         onOpenHelp={() => setShowHelp(true)}
         cloudStatus={cloudStatus}
+        isManagerUnlocked={isManagerUnlocked}
+        onLockManager={handleLockManager}
       />
 
       {/* Main Content Viewport */}
@@ -405,15 +446,41 @@ export default function App() {
         )}
 
         {currentTab === 'topics' && (
-          <TopicManager
-            topics={topics}
-            selectedTopicId={selectedTopicId}
-            onSelectTopic={setSelectedTopicId}
-            onSaveTopic={handleSaveTopic}
-            onDeleteTopic={handleDeleteTopic}
-            onResetToDefaults={handleResetToDefaults}
-            onStartQuizWithTopic={handleStartQuizWithTopic}
-          />
+          !isManagerUnlocked ? (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center shadow-xl space-y-5 animate-in zoom-in-95">
+                <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto text-3xl shadow-sm">
+                  🔒
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold font-dohyeon text-slate-900 dark:text-white">
+                    주제 & 제시어 관리 잠금
+                  </h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                    학생들의 퀴즈 스포일러를 방지하기 위해 잠겨 있습니다.<br />
+                    선생님 또는 진행자 비밀번호를 입력해 주세요.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>비밀번호 입력하고 열기</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <TopicManager
+              topics={topics}
+              selectedTopicId={selectedTopicId}
+              onSelectTopic={setSelectedTopicId}
+              onSaveTopic={handleSaveTopic}
+              onDeleteTopic={handleDeleteTopic}
+              onResetToDefaults={handleResetToDefaults}
+              onStartQuizWithTopic={handleStartQuizWithTopic}
+              onLock={handleLockManager}
+            />
+          )
         )}
 
         {currentTab === 'teams' && (
@@ -442,6 +509,13 @@ export default function App() {
 
       {/* Instructions / Help Modal */}
       {showHelp && <InstructionsModal onClose={() => setShowHelp(false)} />}
+
+      {/* Password Modal (PIN: 0721) */}
+      <PasswordModal
+        isOpen={showPasswordModal}
+        onSuccess={handlePasswordSuccess}
+        onCancel={() => setShowPasswordModal(false)}
+      />
     </div>
   );
 }

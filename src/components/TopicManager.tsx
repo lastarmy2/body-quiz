@@ -14,7 +14,8 @@ import {
   ArrowRight,
   Search,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Lock,
 } from 'lucide-react';
 
 interface TopicManagerProps {
@@ -25,6 +26,7 @@ interface TopicManagerProps {
   onDeleteTopic: (id: string) => void;
   onResetToDefaults: () => void;
   onStartQuizWithTopic: (topicId: string) => void;
+  onLock?: () => void;
 }
 
 const COMMON_EMOJIS = ['🦁', '⚽', '👮', '😂', '🏫', '🧚', '🍕', '🚀', '🎬', '🎨', '🎵', '🧩', '🌳', '🌟', '🤖'];
@@ -37,6 +39,7 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
   onDeleteTopic,
   onResetToDefaults,
   onStartQuizWithTopic,
+  onLock,
 }) => {
   const [editingTopic, setEditingTopic] = useState<QuizTopic | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -299,6 +302,17 @@ export const TopicManager: React.FC<TopicManagerProps> = ({
           >
             <RotateCcw className="w-4 h-4" /> 초기화
           </button>
+
+          {onLock && (
+            <button
+              onClick={onLock}
+              title="관리자 모드 잠그고 퀴즈 화면으로 이동"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/80 dark:hover:bg-amber-900/80 text-amber-800 dark:text-amber-300 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <Lock className="w-4 h-4" />
+              <span>관리자 잠금</span>
+            </button>
+          )}
         </div>
       </div>
 

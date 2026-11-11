@@ -13,6 +13,8 @@ interface HeaderProps {
   onToggleStageMode: () => void;
   onOpenHelp: () => void;
   cloudStatus: 'connected' | 'syncing' | 'offline';
+  isManagerUnlocked?: boolean;
+  onLockManager?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,6 +29,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleStageMode,
   onOpenHelp,
   cloudStatus,
+  isManagerUnlocked,
+  onLockManager,
 }) => {
   const isDark = stageMode === 'stageDark';
 
@@ -59,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
           <nav className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => onSelectTab('play')}
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === 'play'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -69,13 +73,28 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
             <button
               onClick={() => onSelectTab('topics')}
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                 currentTab === 'topics'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              📝 주제 & 문제 관리
+              <span>📝 주제 & 문제 관리</span>
+              {isManagerUnlocked ? (
+                <span
+                  title="관리자 모드 잠금 해제됨"
+                  className="text-[11px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-mono font-bold"
+                >
+                  🔓 해제
+                </span>
+              ) : (
+                <span
+                  title="비밀번호(0721)로 잠금됨"
+                  className="text-[11px] px-1.5 py-0.2 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 font-mono font-bold"
+                >
+                  🔒 잠김
+                </span>
+              )}
             </button>
             <button
               onClick={() => onSelectTab('teams')}
